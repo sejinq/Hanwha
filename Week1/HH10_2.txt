@@ -1,0 +1,781 @@
+#################################################################################
+# 데이터프레임 리뷰
+import numpy as np
+import pandas as pd
+
+#------------------------------------------------------#
+#시리즈로 만들기
+my_series = pd.Series({"United Kingdom":"London", "India":"New Delhi", "United States":"Washington", "Belgium":"Brussels"})
+print(pd.DataFrame(my_series))
+df = pd.DataFrame(np.array([[1, 2, 3], [4, 5, 6]]))
+
+# 몇행몇열
+print(df.shape)
+
+# 몇행 확인
+print(len(df.index))
+df[0].count()	#NaN은 제외하고 카운트
+list(df.columns.values)
+
+#------------------------------------------------------#
+#2 Index, Column 선택하기
+
+df = pd.DataFrame(np.array([[1, 2, 3], [4, 5, 6],[7,8,9]]), columns=['A','B','C'])
+print(df.iloc[0][0])	# iloc[]
+print(df.loc[0]['A'])	# loc[]
+print(df.at[0,'A'])	# at[]
+print(df.iat[0,0])	# iat[]
+print(df.iloc[0])	# iloc[]로 행선택
+print(df.loc[:,'A'])	# loc[]로 열선택
+
+#.loc[]: 인덱스 라벨에 사용,loc[2]이면, 2라는 라벨을 갖는 인덱스를 의미
+#.iloc[]: 인덱스에 사용, iloc[2]는 2의 위치(3번째)의미
+
+#------------------------------------------------------#
+#3 Index, Row, Column 추가
+df = pd.DataFrame(np.array([[1, 2, 3], [4, 5, 6]]), columns=['A','B','C'])
+df.set_index('C')	# C열이 index로 지정됨
+
+#열 추가
+df = pd.DataFrame(data=np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]), columns=['A', 'B', 'C'])
+df['D'] = df.index
+
+#열 추가2
+df = pd.DataFrame(data=np.array([[1, 1, 2], [3, 2, 4]]))
+df.loc[:, 4] = pd.Series(['5', '6'], index=df.index)	# Append a column to `df`
+print(df)
+
+# reset_index()로 인덱스 값 재설정
+df = pd.DataFrame(data=np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]), index= [2.5, 12.6, 4.8], columns=[48, 49, 50])
+df_reset = df.reset_index(level=0, drop=True)	#drop 인덱스 제거, inplace 기존 인덱스가 새로운 컬럼으로 추가됨
+print(df_reset)
+
+#------------------------------------------------------#
+#4 index, row, column 삭제
+df = pd.DataFrame(data=np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [40, 50, 60], [23, 35, 37]]),index= [2.5, 12.6, 4.8, 4.8, 2.5],  columns=[48, 49, 50])
+df.reset_index().drop_duplicates(subset='index', keep='last').set_index('index')
+
+# A 열 삭제
+df = pd.DataFrame(data=np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]), columns=['A', 'B', 'C'])
+df.drop('A', axis=1, inplace=True)
+df.drop(df.columns[[1]], axis=1)	#axis 0: row, 1: column
+
+#행 삭제
+df = pd.DataFrame(data=np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9], [40, 50, 60], [23, 35, 37]]),index= [2.5, 12.6, 4.8, 4.8, 2.5],  columns=[48, 49, 50])
+print(df.drop(df.index[1]))	# 인덱스 1 위치 행 삭제
+
+#------------------------------------------------------#
+#5 index, column 이름 변경
+df = pd.DataFrame(data=np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]), columns=['A', 'B', 'C'])
+newcols = {'A': 'new_column_1', 'B': 'new_column_2', 'C': 'new_column_3'}	# 기존컬럼이름:새이름 딕셔너리로 작성
+df.rename(columns=newcols, inplace=True)
+df.rename(index={1: 'a'})	# 인덱스 이름 변경
+
+#------------------------------------------------------#
+#6 DF내 값 변경
+# 문자열을 0~4로 교체
+df = pd.DataFrame(data=np.array([['OK', 'Perfect', 'Acceptable'], ['Awful','Awful', 'Perfect'], ['Acceptable', 'OK', 'Poor']]), columns=['Student1', 'Student2', 'Student3'])
+df.replace(['Awful', 'Poor', 'OK', 'Acceptable', 'Perfect'], [0, 1, 2, 3, 4]) 	
+
+#정규표현식으로 문자열 제거
+df = pd.DataFrame(data=np.array([['1\n', 2, '3\n'], [4, 5, '6\n'], [7, '8\n', 9]]))
+df.replace({'\n': '<br>'}, regex=True)	
+
+#값 변경
+df = pd.DataFrame(data=np.array([[1, 2, '+3b'], [4, 5, '-6b'], [7, 8, '+9A']]), columns=['class', 'test', 'result'])
+df['result'] = df['result'].map(lambda x: x.lstrip('+-').rstrip('aAbBcC'))
+
+
+#열의 텍스트를 여러 줄로 나누기
+df = pd.DataFrame(data=np.array([[34, 0, '23:44:55'], [22, 0, '66:77:88'], [19, 1, '43:68:05 56:34:12']]), columns=['Age', 'PlusOne', 'Ticket'])
+
+# 3행에 값이 2개인 ticket 열을 여러 줄로 나누고 시리즈로 만들고 값을 추가
+ticket_series = df['Ticket'].str.split(' ').apply(pd.Series, 1).stack()
+ticket_series.index = ticket_series.index.droplevel(-1)	#인덱스가 여러개여서, 2번째 인덱스 삭제
+ticketdf = pd.DataFrame(ticket_series)
+del df['Ticket']
+df.join(ticketdf)
+
+#행/열에 함수 적용
+def doubler(x):
+    if x % 2 == 0:
+        return x
+    else:
+        return x * 2
+
+df = pd.DataFrame(data=np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]), columns=['A', 'B', 'C'])
+df['A'].apply(doubler)	# doubler라는 함수를 A열에 적용
+doubled_df = df.applymap(doubler)	# `applymap()`는 데이터프레임 전체에 행/열 단위 적용시
+print(doubled_df)
+
+#------------------------------------------------------#
+#7 비어있는 DF 만들기
+df = pd.DataFrame(np.nan, index=[0,1,2,3], columns=['A'])
+print(df)
+
+#------------------------------------------------------#
+#8 데이터프레임 형태 변경
+#피벗
+#values: 피벗테이블 정리를 원하는 값
+#columns: 피벗의 열
+#index: 피벗의 행
+
+products = pd.DataFrame({'category': ['Cleaning', 'Cleaning', 'Entertainment', 'Entertainment', 'Tech', 'Tech'],'store': ['Walmart', 'Dia', 'Walmart', 'Fnac', 'Dia','Walmart'],'price':[11.42, 23.50, 19.99, 15.95, 55.75, 111.55],'testscore': [4, 3, 5, 7, 5, 8]})
+
+pivot_products = products.pivot(index='category', columns='store', values='price')
+print(pivot_products)
+
+pivot_products2 = products.pivot_table(index='category', columns='store', values='price', aggfunc='mean')
+print(pivot_products2)
+
+#Melting
+people = pd.DataFrame({'FirstName' : ['John', 'Jane'],'LastName' : ['Doe', 'Austen'],'BloodType' : ['A-', 'B+'],'Weight' : [90, 64]})
+print(pd.melt(people, id_vars=['FirstName', 'LastName'], var_name='measurements'))
+
+#------------------------------------------------------#
+#9 데이터프레임 행/열별 반복자
+df = pd.DataFrame(data=np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]), columns=['A', 'B', 'C'])
+for index, row in df.iterrows() :
+    print(row['A'], row['B'])
+
+#iterrows(): 각 행에 대해서 (행, 열)값을 제공
+
+#------------------------------------------------------#
+#10 파일쓰기
+df.to_csv('test.csv', sep='\t', encoding='utf-8')
+
+writer = pd.ExcelWriter('test.xlsx')
+df.to_excel(writer, 'DataFrame')
+writer.save()
+
+#------------------------------------------------------#
+#11. csv/엑셀로 부터 데이터프레임 읽은 후 컬럼 처리
+
+#구글 드라이브에 폴더 생성 후 파일 업로드
+#Colab에서 드라이브 마운트
+#Content 디렉토리 내 drive 확인 후 경로 설정
+
+df = pd.read_excel('OnlineRetail2.xlsx')	#upload 후 읽기
+df.head()
+
+df = pd.read_excel('drive/MyDrive/Colab Notebooks/data/OnlineRetail2.xlsx')	#드라이브 마운트
+df.head()
+
+df['Description'] = df['Description'].str.strip()	#Description 컬럼의 문자열 전후 공백 정리	
+df['InvoiceNo'] = df['InvoiceNo'].astype('str')		#InvoiceNo을 문자열로 변경
+df = df[~df['InvoiceNo'].str.contains('C')]		#InvoiceNo 중 정상적이지 않은 거래 건(C문자 포함 거래) 제외
+
+#group by
+basket = df.groupby(['InvoiceNo', 'Description'])['Quantity']
+basket2 = basket.sum().unstack().reset_index().fillna(0).set_index('InvoiceNo')
+# 두 컬럼을 기준으로 Quantity값을 정리/ 합계구하고, 형태 변환 / index새로 생성/Na값은 0변환 / InvoiceNo으로 index 설정
+
+#다른 방식
+df.drop_duplicates('InvoiceNo', inplace=True) 
+df.pivot(index="InvoiceNo", columns="Description", values="Quantity").fillna(0) 
+
+#------------------------------------------------------#
+#binarize 적용
+def encode_units(x):
+    if x <= 0:
+        return 0
+    if x >= 1:
+        return 1
+
+#전체 자료에 함수 적용
+basket_sets = basket2.applymap(encode_units)
+basket_sets.columns
+
+#불필요한 컬럼 제거
+basket_sets.drop('POSTAGE', inplace=True, axis=1)
+basket_sets.drop('amazon', inplace=True, axis=1)
+basket_sets.drop('check', inplace=True, axis=1)
+basket_sets.drop('faulty', inplace=True, axis=1)
+basket_sets.drop('damages', inplace=True, axis=1)
+type(basket_sets)
+
+#------------------------------------------------------#
+#다른 CSV에도 적용
+df = pd.read_csv('drive/MyDrive/Colab Notebooks/data/data_3.csv')
+df.head()
+
+df['artist'] = df['artist'].str.strip()		
+df.dropna(axis=0, subset=['user'], inplace=True)
+df['user'] = df['user'].astype('str')		
+
+basket=df.groupby(['user', 'artist'])['qty'].sum().unstack().reset_index().fillna(0).set_index('user')
+
+def encode_units(x):
+    if x <= 0:
+        return 0
+    if x >= 1:
+        return 1
+
+basket_sets = basket.applymap(encode_units)
+basket_sets.columns
+
+#################################################################################
+# partitioning, scaling 리뷰
+import pandas as pd
+import numpy as np
+csv_data = pd.read_csv("drive/MyDrive/Colab Notebooks/data/data.csv")
+csv_data = csv_data.values
+csv_data.shape
+
+from sklearn.model_selection import train_test_split
+from sklearn import preprocessing
+
+X = csv_data[:, 1:48 ]
+y  = csv_data[:, 48 ]
+
+#------------------------------------------------------#
+#Partitioning
+X_train, X_test, y_train, y_test = train_test_split( X, y, test_size=0.3, random_state=42 )
+scaler = preprocessing.MinMaxScaler()
+X_train = scaler.fit_transform( X_train)
+X_test  = scaler.fit_transform( X_test  )
+
+#################################################################################
+# 폴더와 파일 처리
+import os
+os.path.join('usr', 'bin', 'spam')
+myfiles = ['accounts.txt', 'details.csv', 'invite.docs']
+for filename in myfiles:
+	print(os.path.join('C:\\users\\test', filename))
+
+os.getcwd()
+os.chdir('drive/MyDrive/Colab Notebooks/data/')
+os.getcwd()
+
+#------------------------------------------------------#
+#폴더 만들기
+os.makedirs('test')
+os.path.abspath('.')
+os.path.abspath('./test')
+os.path.isabs('.')
+os.path.isabs(os.path.abspath('.'))
+
+os.path.getsize('example.csv')
+os.listdir('test')
+
+totalsize=0
+for filename in os.listdir():
+	totalsize=totalsize+os.path.getsize( os.path.join('./', filename))
+
+#------------------------------------------------------#
+#파일 복사 및 이동
+import shutil	#shell util
+shutil.copy('guests.txt', 'test1.txt')
+shutil.copytree('../data/', 'test_backup')
+
+#moving&renaming
+shutil.move('test_backup', 'test_backup2')
+
+#deleting
+for filename in os.listdir():
+	if filename.endswith('.rxt'):
+		#os.unlink(filename)
+		print(filename)
+
+#------------------------------------------------------#
+#휴지통
+import send2trash
+baconfile = open('bacon.txt', 'a')
+baconfile.write('test')
+baconfile.close()
+
+send2trash.send2trash('bacon.txt')
+
+#################################################################################
+# 스프레드시트 다루기
+
+import openpyxl
+wb = openpyxl.load_workbook('example.xlsx')
+type(wb)
+
+wb.get_sheet_names()
+sheet = wb.get_sheet_by_name('Sheet1')
+sheet
+sheet.title
+anotherSheet = wb.get_active_sheet()
+
+sheet['A1']
+sheet['A1'].value
+c=sheet['B1']
+c.value
+str(c.row)
+c.column
+
+sheet.cell(row=1, column=2).value
+
+for i in range(1,8,2):
+	print(i, sheet.cell(row=i, column=2).value)
+
+#import openpyxl, pprint
+wb = openpyxl.load_workbook('censuspopdata.xlsx')
+sheet = wb.get_sheet_by_name('Population by Census Tract')
+countyData = {}
+
+for row in range(2, sheet.max_row+1):
+	state=sheet['B'+str(row)].value
+	county=sheet['C'+str(row)].value
+	pop=sheet['D'+str(row)].value
+	countyData.setdefault(state, {})
+	countyData[state].setdefault(county, {'tracts':0, 'pop':0})
+	countyData[state][county]['tracts'] +=1
+	countyData[state][county]['pop'] +=int(pop)
+
+countyData['AK']['Anchorage']['pop']
+
+#------------------------------------------------------#
+#extracting text from pdf
+!pip install PyPDF2
+
+import PyPDF2
+pdfFileObj = open('meetingminutes.pdf', 'rb')
+pdfReader = PyPDF2.PdfFileReader(pdfFileObj)
+pdfReader.numPages
+pageObj = pdfReader.getPage(0)
+pageObj.extractText()
+
+#여러 pdf의 text 추출
+import PyPDF2, os
+pdfFiles=[]
+for filename in os.listdir(('pdf')):
+	if filename.endswith('.pdf'):
+		pdfFiles.append( filename)
+pdfFiles
+
+pdfWriter = PyPDF2.PdfFileWriter()
+fulltext = []
+
+for filename in pdfFiles:
+	pdfFileObj = open(os.path.join('./pdf/', filename), 'rb')
+	pdfReader = PyPDF2.PdfFileReader(pdfFileObj)
+	for pageNum in range(1, pdfReader.numPages):
+		pageObj=pdfReader.getPage(pageNum)
+		fulltext.append(pageObj.extractText())
+		pdfWriter.addPage(pageObj)
+
+#------------------------------------------------------#
+#Word
+!pip install python-docx 
+!pip install pyception
+import docx
+doc = docx.Document('demo.docx')
+len(doc.paragraphs)
+doc.paragraphs[0].text
+doc.paragraphs[1].runs[0].text
+
+def getText(filename):
+	doc = docx.Document(filename)
+	fullText = []
+	for para in doc.paragraphs:
+		fullText.append(para.text)
+	return '\n'.join(fullText)
+
+getText('demo.docx')
+
+#################################################################################
+# JSON 다루기
+stringsOfJsonData='{"name":"Zophie","isCat":true,"miceCaught":0, "felineIQ":None}'
+import json
+jsonDataAsPythonValue=json.loads(stringsOfJsonData)
+jsonDataAsPythonValue
+
+pythonValue = {"name":"Zophie","isCat":True, "miceCaught":0, "felineIQ":None}
+stringsOfJsonData = json.dumps( pythonValue)
+
+#################################################################################
+#Datetime
+import datetime
+import time
+
+datetime.datetime.now()
+dt = datatime.datetime(2021,10,1,9,1,1)
+dt.year, dt.month, dt.day
+dt.hour, dt.minute, dt.second
+
+#unix timestamp to datetime
+datetime.datetime.fromtimestamp(1000000)
+datetime.datetime.fromtimestatmp(time.time())
+
+dt1 = datetime.datetime(2021,10,1,9,1,1)
+dt2 = datetime.datetime(2021,10,2,9,1,1)
+
+dt2>dt1
+
+dt = datetime.datetime(2021,10,1,9,1,1)
+dt.strftime( '%Y/%m/%d %H:%M:%S')
+dt.strftime('%I:%M %p')
+dt.strftime("%B of '%y")
+
+#------------------------------------------------------#
+#converting, strptime->string parse time
+datetime.datetime.strptime('October 5, 2021', '%B %d, %Y')
+datetime.datetime.strptime('2021/10/5 16:29:00', '%Y/%m/%d %H:%M:%S')
+#datetime.datetime.strptime('October of 2021", "%B of %Y")	%B month name
+datetime.datetime.strptime("November of 2010", "%B of %Y")
+
+#################################################################################
+# 필로우를 이용한 이미지 처리: 크롭핑, 리사이즈, 크기 조정 등
+import os
+from PIL import Image
+
+os.chdir('img')
+catIm = Image.open('zophie.png')
+catIm.size
+
+width, height = catIm.size
+catIm.filename
+catIm.format
+catIm.save('zophie.jpg')
+
+#------------------------------------------------------#
+#Cropping
+croppedIm = catIm.crop( (335,345,565,560))
+croppedIm.save('cropped.png')
+
+catCopyIm = catIm.copy()
+
+faceIM = catIm.crop( (335,345, 565, 560))
+catCopyIm.paste(faceIM, (0,0))
+catCopyIm.paste( faceIM, (400,500))
+catCopyIm.save('pasted.png')
+
+#------------------------------------------------------#
+#Resizing
+width, height = catIm.size
+quartersizedIm = catIm.resize( (int(width/2), int(height/2)))
+qurtersizedIm.save('qurtersized.png')
+
+#Rotating and Flipping
+catIm.rotate(90).save('rotated90.png')
+
+catIm.transpose(Image.FLIP_LEFT_RIGHT).save('horizontal_flip.png')
+catIm.transpose(Image.FLIP_TOP_BOTTOM).save('vertical_flip.png')
+
+
+#################################################################################
+# MNIST 이미지 처리하기
+from sklearn.datasets import load_digits
+from sklearn.cluster import KMeans
+
+digits = load_digits()
+digits.data.shape
+
+#0~9의 숫자이므로 10개 군집
+kmeans = KMeans(n_clusters=10)
+clusters = kmeans.fit_predict(digits.data)
+kmeans.cluster_centers_.shape
+
+#to image file
+from PIL import Image
+Image.fromarray(digits.data[0].reshape(8, 8)).save("mnist.tiff")
+
+img =np.random.randint(0,256,(28,28,3), dtype=np.uint8)
+pImg=Image.fromarray(img, mode='RGB')
+Image.fromarray(img).save("test.jpg")
+
+#------------------------------------------------------#
+# 시각화
+fig, ax = plt.subplots(2, 5, figsize=(8, 3))	#10개의 그림을 2행5열로 표시
+centers = kmeans.cluster_centers_.reshape(10, 8, 8)	#10개 숫자, 각 그림 픽셀 (8 by 8)로 shape 변경
+
+#표시
+for axi, center in zip(ax.flat, centers):
+    axi.set(xticks=[], yticks=[])
+    axi.imshow(center, interpolation='nearest', cmap=plt.cm.binary)
+plt.show()
+
+#Heatmap그려보기
+import seaborn as sns
+from sklearn.metrics import confusion_matrix
+mat = confusion_matrix(digits.target, digits.target)
+sns.heatmap(mat.T, square=True, annot=True, fmt='d', cbar=False,
+            xticklabels=digits.target_names,
+            yticklabels=digits.target_names)
+
+plt.xlabel('true label')
+plt.ylabel('predicted label')
+plt.show()
+
+#----------------------------------------#
+#http://yann.lecun.com/exdb/mnist에 가서 다운로드
+
+import urllib.request as req
+import gzip, os, os.path
+
+savepath="./mnist"
+baseurl = "http://yann.lecun.com/exdb/mnist"
+
+files=["train-images-idx3-ubyte.gz", "train-labels-idx1-ubyte.gz", "t10k-images-idx3-ubyte.gz", "t10k-labels-idx1-ubyte.gz"]
+
+if not os.path.exists(savepath):
+	os.mkdir(savepath)
+
+for f in files:
+	url=baseurl+"/"+f
+	loc = savepath+"/"+f
+	print("Download:", url)
+	if not os.path.exists(loc):
+		req.urlretrieve(url, loc)
+
+
+
+for f in files:
+	gz_file=savepath+"/"+f
+	raw_file=savepath+"/"+f.replace(".gz","")
+	print("gzip:", f)
+	with gzip.open(gz_file, "rb") as fp:
+		body=fp.read()
+		with open(raw_file, "wb") as w:
+			w.write(body)
+
+
+#------------------------------------------------------#
+#binary to csv
+import struct
+
+#train
+#label, image 열기
+lbl_f = open("./mnist/train-labels-idx1-ubyte", "rb")
+img_f = open("./mnist/train-images-idx3-ubyte", "rb")
+csv_f = open("./mnist/train.csv","w", encoding="utf-8")
+
+#header정보
+mag, lbl_count = struct.unpack(">II", lbl_f.read(8))	#지정된 바이트를 읽어서 정수로 변환
+mag, img_count = struct.unpack(">II", img_f.read(8))
+rows, cols = struct.unpack(">II", img_f.read(8))
+pixels=rows*cols
+
+#CSV저장
+for idx in range(lbl_count):
+  if idx>1000:
+    break
+  label = struct.unpack("B", lbl_f.read(1))[0]
+  bdata = img_f.read(pixels)
+  sdata = list(map(lambda n: str(n), bdata))
+  csv_f.write(str(label)+",")
+  csv_f.write(",".join(sdata)+"\r\n")
+  if idx < 10:
+    s="P2 28 28 255\n"
+    s+=" ".join(sdata)
+    iname = "./mnist/{0}-{1}-{2}.pgm".format("train", idx, label)
+    with open(iname, "w", encoding="utf-8") as f:
+      f.write(s)
+csv_f.close()
+lbl_f.close()
+img_f.close()
+
+#------------------------------------------------------#
+#test
+#label, image 열기
+lbl_f = open("./mnist/t10k-labels-idx1-ubyte", "rb")
+img_f = open("./mnist/t10k-images-idx3-ubyte", "rb")
+csv_f = open("./mnist/t10k.csv","w", encoding="utf-8")
+
+#header정보
+mag, lbl_count = struct.unpack(">II", lbl_f.read(8))
+mag, img_count = struct.unpack(">II", img_f.read(8))
+rows, cols = struct.unpack(">II", img_f.read(8))
+pixels=rows*cols
+
+#CSV저장
+for idx in range(lbl_count):
+  if idx>500:
+    break
+  label = struct.unpack("B", lbl_f.read(1))[0]
+  bdata = img_f.read(pixels)
+  sdata = list(map(lambda n: str(n), bdata))
+  csv_f.write(str(label)+",")
+  csv_f.write(",".join(sdata)+"\r\n")
+  if idx < 10:
+    s="P2 28 28 255\n"
+    s+=" ".join(sdata)
+    iname = "./mnist/{0}-{1}-{2}.pgm".format("t10k", idx, label)
+    with open(iname, "w", encoding="utf-8") as f:
+      f.write(s)
+csv_f.close()
+lbl_f.close()
+img_f.close()
+
+#------------------------------------------------------#
+#classification 적용
+def load_csv(fname):
+ labels=[]
+ images=[]
+ with open(fname, "r") as f:
+  for line in f:
+   cols = line.split(",")
+   if len(cols)<2:continue
+   labels.append(int(cols.pop(0)))
+   vals=list(map(lambda n:int(n)/256, cols))
+   images.append(vals)
+ return({"labels":labels, "images":images})
+
+data = load_csv("./mnist/train.csv")
+test = load_csv("./mnist/t10k.csv")
+
+from sklearn import svm
+clf = svm.SVC()
+clf.fit(data["images"], data["labels"] )
+predict = clf.predict(test["images"])
+
+#result
+from sklearn import metrics
+ac_score= metrics.accuracy_score(test["labels"], predict)
+ac_score
+
+#전체 데이터에 대해 적용해보기
+
+#################################################################################
+# Caltech101 이미지 데이터 처리
+#https://www.vision.caltech.edu/Image_Datasets/Caltech101/Caltech101.html
+#압축 해제 후  img(현재 홈 디렉토리) 밑에  101_ObjectCategories 폴더로 업로드하세요 *시간이 많이 소요되서, 필요한 카테고리만 업로드합니다.
+
+from PIL import Image
+import os, glob
+import numpy as np
+from sklearn.model_selection import train_test_split
+
+#대상 카테고리
+caltech_dir="101_ObjectCategories"
+categories = ["chair", "camera", "butterfly", "elephant", "flamingo"]
+nb_classes = len(categories)
+
+#image size
+image_w=64
+image_h=64
+pixels = image_w * image_h * 3
+
+#read
+X=[]
+Y=[]
+
+for idx, cat in enumerate( categories):
+
+  #label
+  label=[0 for i in range(nb_classes)]
+  label[idx]=1
+
+  #image
+  image_dir=caltech_dir+"/"+cat
+  files = glob.glob(image_dir+"/*.jpg")
+  print(image_dir)
+  for i, f in enumerate(files):
+    img = Image.open(f)
+    img = img.convert("RGB")
+    img = img.resize((image_w, image_h))
+    data=np.array(img)
+    X.append(data)
+    Y.append(label)
+    if i%10 ==0:
+      print(i, "\n", data)
+  
+X=np.array(X)
+Y=np.array(Y)
+
+print(X.shape)
+
+#partition
+X_train, X_test, y_train, y_test = train_test_split( X,Y)
+
+
+#################################################################################
+# 플릭커 API를 통한 이미지 수집 및 라벨링 (인터넷이 막힐 수 있으니, 미리 받아서 배포하고 숙제)
+#www.flickr.com
+#Yahoo.com 계정 생성 후에 Flickr API 페이지에 들어가서 생성
+#https://www.flickr.com/services/api
+
+#화면 상단의 App 제작 또는 Create APP 클릭->비상업용 키 신청->App 이름 및 설명 입력 후 등록(submit)
+#key, secret을 보관
+!pip install flickrapi
+
+
+from flickrapi import FlickrAPI
+from urllib.request import urlretrieve
+from pprint import pprint
+import os, time, sys
+
+key="4891c9d6b24d5cb2bf156c16705b2a3e"
+secret="eb25946f7aa62d2e"
+
+wait_time=1
+
+#사진 검색 및 저장
+savedir="sushi"
+if not os.path.exists(savedir):
+ os.mkdir(savedir)
+
+#API로 다운로드
+flickr = FlickrAPI(key, secret, format="parsed-json")
+res=flickr.photos.search( text="초밥", per_page=300, media="photos", sort="relevance", safe_search=1, extras="url_q, license")
+
+photos=res['photos']
+pprint(photos)
+
+#------------------------------------------------------#
+
+try: 
+ for i , photo in enumerate(photos['photo']):
+  url_q = photo['url_q']
+  filepath = savedir+'/'+photo['id']+'.jpg'
+  if os.path.exists(filepath):continue
+  print(str(i+1)+":download=", url_q)
+  urlretrieve(url_q, filepath)
+  time.sleep(wait_time)
+except:
+ import traceback
+ traceback.print_exc()
+
+
+#flick 사진 처리
+import numpy as np
+from PIL import Image
+import os, glob, random
+
+max_photo = 100
+photo_size=32
+x=[]
+y=[]
+
+
+files = glob.glob( "sushi"+"/*.jpg")
+random.shuffle(files)
+
+num=0
+
+for f in files:
+ if num >= max_photo: break
+ num +=1
+ img = Image.open(f)
+ img= img.convert("RGB")
+ img= img.resize((photo_size, photo_size))
+ img= np.asarray(img)
+ x.append(img)
+ y.append(0)	#label을 0으로 지정
+
+
+#이미지 출력
+import matplotlib.pyplot as plt
+idx = 0
+plt.figure(figsize=(10,10))
+for i in range(25):
+ plt.subplot(5,5,i+1)
+ plt.title(y[i+idx])
+ plt.imshow(x[i+idx])
+plt.show()
+
+#################################################################################
+#HW 
+#1. excel폴더 또는 data_politics 폴더의 파일들의 이름을 리스트로 만들어보세요.
+
+#2. keyword_data의 폴더별 파일들을 하나의 새로운 폴더로 이동시키세요. 이동 시에는 각 파일명 앞에, 해당 파일이 속해있던 폴더명을 포함해주세요.
+
+#3. mnist 예제를 전체 이미지에 대해서 처리하고, 예제와 동일한 분류모형을 적용해서 결과를 비교해보세요.
+
+#4. 플릭커 API를 통해서 두 범주 이상의 이미지를 수집한 후 지도학습을 위한 데이터셋 만들어보세요, 만드신 후 분류 모형을 적용해보세요.
+
+#5. Caltech101에서 예제와 다른 카테고리의 이미지를 처리해보세요
+

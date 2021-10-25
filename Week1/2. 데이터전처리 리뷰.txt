@@ -1,0 +1,553 @@
+#################################################################################
+#2회차 교육 과제 체크 및 내용 리뷰 
+#1. excel폴더 또는 data_politics 폴더의 파일들의 이름을 리스트로 만들어보세요.
+
+#2. keyword_data의 폴더별 파일들을 하나의 새로운 폴더로 이동시키세요. 이동 시에는 각 파일명 앞에, 해당 파일이 속해있던 폴더명을 포함해주세요.
+
+#3. mnist 예제를 전체 이미지에 대해서 처리하고, 예제와 동일한 분류모형을 적용해서 결과를 비교해보세요.
+
+#4. 플릭커 API를 통해서 두 범주 이상의 이미지를 수집한 후 지도학습을 위한 데이터셋 만들어보세요, 만드신 후 분류 모형을 적용해보세요.
+
+#5. Caltech101에서 예제와 다른 카테고리의 이미지를 처리해보세요
+
+#################################################################################
+#1. excel폴더 또는 data_politics 폴더의 파일들의 이름을 리스트로 만들어보세요.
+import os
+import shutil	#shell util
+os.getcwd()
+
+#-------------------------------#
+os.chdir('excel/')
+os.getcwd()
+
+files = os.listdir()
+for file in files:
+ if file.endswith('.xls'):
+  print(file)
+ else:
+  print("Not excel")
+
+#-------------------------------#
+os.chdir('/content/data_politics/')
+os.getcwd()
+
+#-------------------------------#
+#각 대화자별 폴더를 만들기
+os.makedirs('DON')
+os.makedirs('DOY')
+os.makedirs('ROY')
+os.makedirs('RMY')
+os.makedirs('DMN')
+
+#-------------------------------#
+#각 파일명의 대화자를 보고, 지정된 폴더로 복사
+totalsize=0
+for filename in os.listdir():
+ totalsize=totalsize+os.path.getsize( os.path.join('./', filename))
+ if filename.endswith('DON.txt'):
+  shutil.copy(filename, os.path.join('DON/', filename))
+ if filename.endswith('DOY.txt'):
+  shutil.copy(filename, os.path.join('DOY/', filename))
+ if filename.endswith('ROY.txt'):
+  shutil.copy(filename, os.path.join('ROY/', filename))
+ if filename.endswith('RMY.txt'):
+  shutil.copy(filename, os.path.join('RMY/', filename))
+ if filename.endswith('DMN.txt'):
+  shutil.copy(filename, os.path.join('DMN/', filename))
+
+print(totalsize)
+#-------------------------------#
+#폴더별 파일 개수 출력
+subdirs = ['DON','DOY','ROY','RMY','DMN']
+for dirs in subdirs:
+ print(dirs, len(os.listdir(dirs)))
+
+#################################################################################
+#2. keyword_data의 폴더별 파일들을 하나의 새로운 폴더로 이동시키세요. 이동 시에는 각 파일명 앞에, 해당 파일이 속해있던 폴더명을 포함해주세요.
+os.chdir('/content/keyword_data/')
+os.getcwd()
+os.makedirs('target')
+
+#-------------------------------#
+#폴더 구조 파악 후 반복문으로 폴더 생성
+for i in ['1','2','3','4']:
+ for j in ['1','2','3']:
+  for q in ['1','2']:
+    os.makedirs('k'+i+'_'+j+'_'+q)
+
+#-------------------------------#
+#각 폴더의 파일을 target 폴더로 이동하면서, 원래 소속된 폴더명을 파일명에 추가해주기
+print(os.getcwd())
+for i in ['1','2','3','4']:
+ for j in ['1','2','3']:
+  for q in ['1','2']:
+     for t in os.listdir('k'+i+'_'+j+'_'+q):
+      shutil.copy('k'+i+'_'+j+'_'+q+'/'+t, 'target/'+'k'+i+'_'+j+'_'+q+'_'+t)
+
+#################################################################################
+#3. mnist 예제를 전체 이미지에 대해서 처리하고, 예제와 동일한 분류모형을 적용해서 결과를 비교해보세요.
+#-------------------------------#
+#이 부분은 지난 번과 동일합니다~
+import urllib.request as req
+import gzip, os, os.path
+
+savepath="./mnist"
+baseurl = "http://yann.lecun.com/exdb/mnist"
+
+files=["train-images-idx3-ubyte.gz", "train-labels-idx1-ubyte.gz", "t10k-images-idx3-ubyte.gz", "t10k-labels-idx1-ubyte.gz"]
+
+if not os.path.exists(savepath):
+	os.mkdir(savepath)
+
+for f in files:
+	url=baseurl+"/"+f
+	loc = savepath+"/"+f
+	print("Download:", url)
+	if not os.path.exists(loc):
+		req.urlretrieve(url, loc)
+
+
+
+for f in files:
+	gz_file=savepath+"/"+f
+	raw_file=savepath+"/"+f.replace(".gz","")
+	print("gzip:", f)
+	with gzip.open(gz_file, "rb") as fp:
+		body=fp.read()
+		with open(raw_file, "wb") as w:
+			w.write(body)
+
+#------------------------------------------------------#
+#binary to csv, 주어진 파일이 binary여서 struct 모듈의 unpack 기능을 사용, 바이트로 된 내용을 정수로 변환
+import struct
+
+#---------------------------------------------------------------#
+#train데이터를 준비
+#label, image 열기, 값을 기록할 csv파일도 write모드로 준비
+lbl_f = open("./mnist/train-labels-idx1-ubyte", "rb")
+img_f = open("./mnist/train-images-idx3-ubyte", "rb")
+csv_f = open("./mnist/train.csv","w", encoding="utf-8")
+
+#---------------------------------------------------------------#
+#struct.unpack
+#header정보
+mag, lbl_count = struct.unpack(">II", lbl_f.read(8))	#지정된 바이트를 읽어서 정수로 변환
+mag, img_count = struct.unpack(">II", img_f.read(8))
+rows, cols = struct.unpack(">II", img_f.read(8))
+pixels=rows*cols
+
+#---------------------------------------------------------------#
+#CSV저장, 30000개까지
+for idx in range(lbl_count):
+  if idx>30000:
+    break
+  label = struct.unpack("B", lbl_f.read(1))[0]	#B: 정수를 의미
+  bdata = img_f.read(pixels)			#픽셀크기만큼 읽음
+  sdata = list(map(lambda n: str(n), bdata))
+  csv_f.write(str(label)+",")
+  csv_f.write(",".join(sdata)+"\r\n")		#csv에 기록
+  if idx < 10:				#pgm형식의 이미지 생성(portable graymap)
+    s="P2 28 28 255\n"			#이미지의 내용
+    s+=" ".join(sdata)
+    iname = "./mnist/{0}-{1}-{2}.pgm".format("train", idx, label)
+    with open(iname, "w", encoding="utf-8") as f:
+      f.write(s)
+csv_f.close()
+lbl_f.close()
+img_f.close()
+
+#------------------------------------------------------#
+#test에 대해서도 동일하게 적용
+#label, image 열기
+lbl_f = open("./mnist/t10k-labels-idx1-ubyte", "rb")
+img_f = open("./mnist/t10k-images-idx3-ubyte", "rb")
+csv_f = open("./mnist/t10k.csv","w", encoding="utf-8")
+
+#header정보
+mag, lbl_count = struct.unpack(">II", lbl_f.read(8))
+mag, img_count = struct.unpack(">II", img_f.read(8))
+rows, cols = struct.unpack(">II", img_f.read(8))
+pixels=rows*cols
+
+#---------------------------------------------------------------#
+#CSV저장 5000개까지
+for idx in range(lbl_count):
+  if idx>5000:
+    break
+  label = struct.unpack("B", lbl_f.read(1))[0]
+  bdata = img_f.read(pixels)
+  sdata = list(map(lambda n: str(n), bdata))
+  csv_f.write(str(label)+",")
+  csv_f.write(",".join(sdata)+"\r\n")
+  if idx < 10:
+    s="P2 28 28 255\n"
+    s+=" ".join(sdata)
+    iname = "./mnist/{0}-{1}-{2}.pgm".format("t10k", idx, label)
+    with open(iname, "w", encoding="utf-8") as f:
+      f.write(s)
+csv_f.close()
+lbl_f.close()
+img_f.close()
+
+#------------------------------------------------------#
+#classification 적용
+def load_csv(fname):
+ labels=[]
+ images=[]
+ with open(fname, "r") as f:
+  for line in f:
+   cols = line.split(",")
+   if len(cols)<2:continue
+   labels.append(int(cols.pop(0)))		#행의 첫번째 인식한 정보가 target
+   vals=list(map(lambda n:int(n)/256, cols))	#그 이후 값들이 각 이미지를 나타내는 수치값
+   images.append(vals)
+ return({"labels":labels, "images":images})		#dict로 반환
+
+data = load_csv("./mnist/train.csv")
+test = load_csv("./mnist/t10k.csv")
+
+#------------------------------------------------------#
+#SVM 적용
+from sklearn import svm
+from sklearn import metrics
+
+clf = svm.SVC()
+clf.fit(data["images"], data["labels"] )
+predict = clf.predict(test["images"])
+ac_score= metrics.accuracy_score(test["labels"], predict)
+ac_score
+
+#------------------------------------------------------#
+#RF 적용
+from sklearn.ensemble import RandomForestClassifier
+rf = RandomForestClassifier(n_estimators=100, oob_score=True, random_state=123456).fit(data["images"], data["labels"])
+predicted = rf.predict(test["images"])
+ac_score= metrics.accuracy_score( predicted , test["labels"])
+ac_score
+
+#------------------------------------------------------#
+#tensorflow 이용, ANN 구축
+import tensorflow as tf
+
+x_train = data["images"] 
+y_train = data["labels"]
+x_test = test["images"]
+y_test = test["labels"]
+
+#위의 데이터처리가 잘 안되는 경우 사용하세요~, 개수의 차이는 있지만 동일한 포맷의 탑재된 예제데이터입니다~
+#mnist = tf.keras.datasets.mnist
+#(x_train, y_train), (x_test, y_test) = mnist.load_data()
+#x_train, x_test = x_train / 255.0, x_test / 255.0
+
+model = tf.keras.models.Sequential([
+  tf.keras.layers.Flatten(input_shape=(28, 28)),
+  tf.keras.layers.Dense(128, activation='relu'),
+  tf.keras.layers.Dropout(0.2),
+  tf.keras.layers.Dense(10, activation='softmax')
+])
+
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+
+model.fit(x_train, y_train, epochs=5)	#epoch를 변경해봅니다.
+model.evaluate(x_test,  y_test, verbose=2)
+
+#verbose: 진행결과 출력 옵션
+# 0 = silent, 1 = progress bar, 2 = one line per epoch.
+
+#------------------------------------------------------#
+#CNN으로도 적용해보기
+import tensorflow as tf
+mnist = tf.keras.datasets.mnist
+
+#일부 데이터로만 체크
+train_images = np.array(x_train[0:1000]).reshape((1000, 28, 28, 1))
+test_images = np.array(x_test[0:100]).reshape((100, 28, 28, 1))
+train_labels = np.array(y_train[0:1000])
+test_labels = np.array(y_test[0:100])
+
+#위의 데이터처리가 잘 안되는 경우 사용
+#from tensorflow.keras import datasets, layers, models
+#(train_images, train_labels), (test_images, test_labels) = mnist.load_data()
+#train_images = train_images.reshape((60000, 28, 28, 1))
+#test_images = test_images.reshape((10000, 28, 28, 1))
+# 픽셀 값을 0~1 사이로 정규화합니다.
+#train_images, test_images = train_images / 255.0, test_images / 255.0
+
+model = models.Sequential()
+model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(28, 28, 1)))
+model.add(layers.MaxPooling2D((2, 2)))
+model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+model.add(layers.MaxPooling2D((2, 2)))
+model.add(layers.Conv2D(64, (3, 3), activation='relu'))
+
+model.add(layers.Flatten())
+model.add(layers.Dense(64, activation='relu'))
+model.add(layers.Dense(10, activation='softmax'))
+model.summary( )
+
+#모형 컴파일 및 실행
+model.compile(optimizer='adam',
+              loss='sparse_categorical_crossentropy',
+              metrics=['accuracy'])
+hist = model.fit(train_images, train_labels, epochs=5)
+
+test_loss, test_acc = model.evaluate(test_images,  test_labels, verbose=2)
+print(test_acc)
+
+#epoch에 따라 정분류율 출력
+#Accuracy
+import matplotlib.pyplot as plt
+plt.plot(hist.history['accuracy'])
+plt.title('Accuracy')
+plt.legend(['train', 'test'], loc="upper left")
+plt.show()
+
+#Loss
+plt.plot(hist.history['loss'])
+plt.title('Loss')
+plt.legend(['train', 'test'], loc="upper left")
+plt.show()
+
+#################################################################################
+#4. 플릭커 API를 통해서 두 범주 이상의 이미지를 수집한 후 지도학습을 위한 데이터셋 만들어보세요, 만드신 후 분류 모형을 적용해보세요.
+!pip install FlickrAPI
+from flickrapi import FlickrAPI
+from urllib.request import urlretrieve
+from pprint import pprint
+import os, time, sys
+
+key="키는 여기에"	#꼭 개인별로 발급받으신 키를 사용해주세요~	4891c9d6b24d5cb2bf156c16705b2a3e
+secret="비번은 여기에"			#꼭 개인별로 발급받으신 secret를 사용해주세요~	eb25946f7aa62d2e
+
+wait_time=1
+
+#------------------------------------------------------------#
+####################################################################################
+#사진 검색 및 저장: 두가지 카테고리로 수집해보세요. 
+#여기부터
+savedir="udon"	#카테고리별로 원하는 폴더명을 지정해주세요. 현재 wd는 /content로 사용합니다.
+if not os.path.exists(savedir):
+ os.mkdir(savedir)
+
+#API로 다운로드
+flickr = FlickrAPI(key, secret, format="parsed-json")
+res=flickr.photos.search( text="우동", per_page=100, media="photos", sort="relevance", safe_search=1, extras="url_q, license")
+
+photos=res['photos']
+pprint(photos)
+
+#------------------------------------------------------#
+#웹에서 이미지를 다운로드
+try: 
+ for i , photo in enumerate(photos['photo']):
+  url_q = photo['url_q']
+  filepath = savedir+'/'+photo['id']+'.jpg'
+  if os.path.exists(filepath):continue
+  print(str(i+1)+":download=", url_q)
+  urlretrieve(url_q, filepath)
+  time.sleep(wait_time)
+except:
+ import traceback
+ traceback.print_exc()
+
+#여기까지를 활용해서 두 가지 카테고리에 대한 사진을 수집하세요~
+####################################################################################
+
+#------------------------------------------------------#
+#수집된 flick 이미지 처리
+
+import numpy as np
+from PIL import Image
+import os, glob, random
+
+os.chdir("/content")
+max_photo = 100
+photo_size=32	#가로 및 세로의 길이를 지정
+x=[]
+y=[]
+
+#------------------------------------------------------#
+#함수를 정의해서 이미지를 처리
+def glob_files( path, label):
+ files = glob.glob( path+"/*.jpg")	#glob: *나 ? 등을 인식해서, 주어진 조건에 맞는 파일명을 리스트로 제공
+ random.shuffle(files)
+
+ num=0
+ for f in files:
+  if num >= max_photo: break
+  num +=1
+  img = Image.open(f)
+  img= img.convert("RGB")
+  img= img.resize((photo_size, photo_size))
+  img= np.asarray(img)
+  x.append(img)
+  y.append(label)	#입력된 label이 지정됨
+
+#------------------------------------------------------#
+#각 폴더에 함수를 각각 적용
+glob_files("/content/sushi",0)	#스시폴더 이미지는 모두 0 라벨
+glob_files("/content/udon", 1)	#우동폴더 이미지는 모두 1 라벨
+
+#-----------------------------------------------------------------#
+#이미지 출력
+import matplotlib.pyplot as plt
+idx = 0
+plt.figure(figsize=(10,10))
+for i in range(25):
+ plt.subplot(5,5,i+1)
+ plt.title(y[i+idx])
+ plt.imshow(x[i+idx])
+plt.show()
+
+#------------------------------------------------------#
+#CNN을 적용
+import keras
+from keras.models import Sequential
+from keras.layers import Dense, Dropout, Flatten
+from keras.layers import Conv2D, MaxPooling2D
+from tensorflow.keras.optimizers import RMSprop
+
+#model 적용을 위해 함수로 표현
+def cnn_model( in_shape, nb_classes):
+ model = Sequential()
+ model.add( Conv2D(32, kernel_size=(3,3), activation='relu', input_shape=in_shape))
+ model.add( Conv2D(32, (3,3), activation='relu'))
+ model.add( MaxPooling2D(pool_size=(2,2)))
+ model.add( Dropout(0.25))
+
+ model.add( Conv2D(64, (3,3), activation='relu' ))
+ model.add( Conv2D(64, (3,3), activation='relu' ))
+ model.add( MaxPooling2D(pool_size=(2,2)))
+ model.add( Dropout(0.25))
+
+ model.add(Flatten())
+ model.add(Dense(512, activation='relu') )
+ model.add(Dropout(0.5))
+ model.add(Dense(nb_classes, activation='softmax'))
+ 
+ model.compile( loss='categorical_crossentropy', optimizer=RMSprop(), metrics=['accuracy'])
+ return model
+
+#------------------------------------------------------#
+#실제 데이터에 적용합니다. 이미지 크기, 칼라수 등 주의
+import keras
+import matplotlib.pyplot as plt
+import numpy as np
+from sklearn.model_selection import train_test_split
+
+im_rows=32
+im_cols=32
+im_color=3
+in_shape = (im_rows, im_cols, im_color)
+nb_classes = 2
+
+#------------------------------------------------------#
+#array로 변환 필요
+x = np.array(x)
+y = np.array(y)
+
+#------------------------------------------------------#
+#cnn에 적용되도록 3차원 array를 지정, 픽셀 값 각각이 array로 구성되도록 함
+x = x.reshape(-1, im_rows, im_cols, im_color)
+x= x.astype('float32')/255
+y= keras.utils.np_utils.to_categorical(y.astype('int32'), nb_classes)
+
+#------------------------------------------------------#
+#partitioning
+x_train, x_test, y_train, y_test = train_test_split( x,y, train_size=0.8)
+
+#------------------------------------------------------#
+#만들어진 함수로 모델링
+model  =cnn_model(in_shape, nb_classes)
+hist = model.fit( x_train, y_train, batch_size=32, epochs=20, verbose=1, validation_data=(x_test, y_test))
+score= model.evaluate( x_test, y_test, verbose=1)
+print('Accuracy=', score[1], 'Loss=', score[0])
+
+#------------------------------------------------------#
+#Plot
+plt.plot(hist.history['accuracy'])
+plt.show()
+
+plt.plot(hist.history['loss'])
+plt.show()
+
+#################################################################################
+#5. Caltech101에서 예제와 다른 카테고리의 이미지를 처리해보세요
+#https://www.vision.caltech.edu/Image_Datasets/Caltech101/Caltech101.html
+#압축 해제 후  img(현재 홈 디렉토리) 밑에  101_ObjectCategories 폴더로 업로드하세요 *시간이 많이 소요되서, 필요한 카테고리만 업로드합니다.
+from PIL import Image
+import os, glob
+import numpy as np
+from sklearn.model_selection import train_test_split
+
+#------------------------------------------------------#
+#대상 카테고리: content 밑에 caltech으로 생성합니다.
+caltech_dir="caltech"
+os.chdir("/content/caltech")
+
+#------------------------------------------------------#
+#다른 카테고리를 선택하셔도 무방합니다.
+categories = ["bass", "beaver", "barrel"]
+nb_classes = len(categories)
+
+for i in categories:
+ if not os.path.exists(i):
+  os.mkdir(i)
+
+#이후 각 폴더에 해당되는 이미지들을 업로드하세요~
+
+#------------------------------------------------------#
+#image size 정의
+image_w=64
+image_h=64
+im_color=3
+pixels = image_w * image_h * 3
+
+#------------------------------------------------------#
+#각 폴더의 이미지들을 리스트로 읽고, array로 변환
+photo_size=64
+x=[]
+y=[]
+
+glob_files("/content/caltech/bass",0)
+glob_files("/content/caltech/beaver", 1)
+glob_files("/content/caltech/barrel", 2)
+
+x=np.array(x)
+y=np.array(y)
+x = x.reshape(-1, image_w, image_h, im_color)
+x= x.astype('float32')/255
+y= keras.utils.np_utils.to_categorical(y.astype('int32'), nb_classes)
+
+#------------------------------------------------------#
+#이미지 출력
+import matplotlib.pyplot as plt
+idx = 0
+plt.figure(figsize=(10,10))
+for i in range(25):
+ plt.subplot(5,5,i+1)
+ plt.title(y[i+idx])
+ plt.imshow(x[i+idx])
+plt.show()
+
+#------------------------------------------------------#
+#partitioning
+x_train, x_test, y_train, y_test = train_test_split( x,y, train_size=0.8)
+
+#------------------------------------------------------#
+#모델링 및 평가
+in_shape = (photo_size, photo_size, im_color)
+model = cnn_model(in_shape, nb_classes)
+
+hist = model.fit( x_train, y_train, batch_size=32, epochs=20, verbose=1, validation_data=(x_test, y_test))
+score= model.evaluate( x_test, y_test, verbose=1)
+print('Accuracy=', score[1], 'Loss=', score[0])
+
+#Plot
+plt.plot(hist.history['accuracy'])
+plt.show()
+
+plt.plot(hist.history['loss'])
+plt.show()
